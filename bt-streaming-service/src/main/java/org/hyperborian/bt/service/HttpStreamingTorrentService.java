@@ -1,37 +1,32 @@
 package org.hyperborian.bt.service;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.file.FileSystem;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
-import java.util.Arrays;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.hyperborian.bt.stream.HttpTorrentStorage;
+import org.hyperborian.bt.stream.StreamingFileSystemStorage;
 
-import com.google.common.jimfs.Configuration;
-import com.google.common.jimfs.Jimfs;
 import com.google.inject.Module;
 
 import bt.Bt;
-import bt.data.Storage;
-import bt.data.file.FileSystemStorage;
 import bt.dht.DHTConfig;
 import bt.dht.DHTModule;
 import bt.metainfo.Torrent;
@@ -50,23 +45,18 @@ public class HttpStreamingTorrentService implements Consumer<TorrentSessionState
 	protected String name;
 	protected long size;
 	
-	private HttpTorrentStorage storage;
+	private StreamingFileSystemStorage storage;
+	private java.nio.file.Path pathToFile;
+	protected int totalChunks;
 
 	@GET
-	public Response exportExcel()  throws Exception  {
+	@Path("/torrent/{infoHash}")
+	public Response getTorrent(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash)  throws Exception  {
 		
-		String magnetUri = "magnet:?xt=urn:btih:a9b09d61aaa9090a5fa77f7da02bcd78b80f6f85&dn=example.torrent";
-
-    	/*FileSystem fs = Jimfs.newFileSystem(Configuration.unix());
-    	java.nio.file.Path foo = fs.getPath("/foo");
-    	Files.createDirectory(foo);
-
-    	java.nio.file.Path hello = foo.resolve("inmemory.torrent");
-    	java.nio.file.Path file = Files.createFile(hello);
-    	Storage storage = new FileSystemStorage(file);*/
-		
-    	//Storage storage = new FileSystemStorage(new File("target/Downloads").toPath());
-		storage = new HttpTorrentStorage(1024*1024*1024);
+		//String magnetUri = "magnet:?xt=urn:btih:a9b09d61aaa9090a5fa77f7da02bcd78b80f6f85&dn=example.torrent";
+		String magnetUri = "magnet:?xt=urn:btih:"+infoHash;
+		pathToFile = Paths.get("Download");
+		storage = new StreamingFileSystemStorage(pathToFile);
     	PieceSelector selector = SequentialSelector.sequential();
     	Module module = new DHTModule (new DHTConfig() {
     		@Override
@@ -86,31 +76,14 @@ public class HttpStreamingTorrentService implements Consumer<TorrentSessionState
 				HttpStreamingTorrentService.this.chunkSize = t.getChunkSize();
 				HttpStreamingTorrentService.this.name = t.getName();
 				HttpStreamingTorrentService.this.size = t.getSize();
-				
+				HttpStreamingTorrentService.this.totalChunks = (int) Math.ceil(size / chunkSize);
 			}
     		
     	};
-		client = Bt.client().storage(storage).autoLoadModules().module(module).selector(selector).magnet(magnetUri).afterTorrentFetched(torrentConsumer).initEagerly().build();
-
-    	/**
-    	 * TODO add pre-load listener to return total size of certain torrent file
-    	 * As result return Reponse.ok object within the listener
-    	 */
-    	/*client.startAsync(state->{
-    		
-    		if(state.getPiecesRemaining()==0) {
-    			client.stop();
-    		} else {
-    			System.err.println("**********************************************");
-    			System.err.println("************************************** Pieces:"+state.getPiecesComplete());
-    			System.err.println("**********************************************");
-    		}
-    		
-    	}, 1000);*/
-		
+		client = Bt.client().storage(storage).autoLoadModules().module(module).selector(selector).magnet(magnetUri).afterTorrentFetched(torrentConsumer).build();
+	
 		client.startAsync(this, 1000);
-    	
-	    
+    
 	    while(size==0) {
 	    	Thread.sleep(200);
 	    }
@@ -123,25 +96,40 @@ public class HttpStreamingTorrentService implements Consumer<TorrentSessionState
 	    
 	    StreamingOutput stream = new StreamingOutput() {
 	    	
-			private long sent;
-
+			private long piecesSent = 0;
+			
+			java.nio.file.Path path = Paths.get(pathToFile.toString(), name);
+			SeekableByteChannel sbc = Files.newByteChannel(path, StandardOpenOption.READ);
 			public void write(OutputStream output) throws IOException {
-		        /*
-				try {
-		        	byte[] buffer = new byte[8192];
-		            int bytes;
-		            while ((bytes = input.read()) != -1 || sent<size) {
-		            	if(bytes>-1) {
-			                output.write(bytes);
-			                sent +=1;
-		            	}
-		            }
-		        } catch (Exception e) {
-		            throw new WebApplicationException(e);
-		        } finally {
-		            if (output != null) output.close();
-		        }*/
-		        
+	            try {
+	            	while(true) {
+			            while(piecesAvailable==piecesSent) {
+			            	try {
+								Thread.sleep(500);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+			            }
+			            sbc.position(piecesSent*chunkSize);
+			            ByteBuffer buf = ByteBuffer.allocate((int) chunkSize);
+			            int read = 1;
+			            int gotBytes = 0;
+			            while(buf.hasRemaining() && read > 0) {
+			              read = sbc.read(buf);
+			              gotBytes+=read;
+			            }
+			            output.write(buf.array(), 0, gotBytes);
+			            output.flush();
+			            piecesSent = piecesAvailable;
+			            if(piecesSent==totalChunks) {
+			            	output.close();
+			            	break;
+			            }
+	            	}
+	            } finally {
+	            	sbc.close();
+	            	Files.delete(path);
+	            }
 	        }
 	    };
 	    
@@ -177,14 +165,9 @@ public class HttpStreamingTorrentService implements Consumer<TorrentSessionState
 	    }
 
 	    private void completeTask() {
-	    	System.err.println("");
-			System.err.println("ReadList:"+Arrays.deepToString(storage.getTorrentStorageUnit().getReadOffset().toArray()));
-			System.err.println("WriteList:"+Arrays.deepToString(storage.getTorrentStorageUnit().getWriteOffset().toArray()));
-			System.err.println("");
-			System.err.println("");
+
 			System.err.println("Current offset:"+storage.getTorrentStorageUnit().getCurrentOffset());
-			System.err.println("WriteList:"+Arrays.deepToString(storage.getTorrentStorageUnit().getWriteOffset().toArray()));
-			System.err.println("");
+			
 	    }
 	    
 	}
