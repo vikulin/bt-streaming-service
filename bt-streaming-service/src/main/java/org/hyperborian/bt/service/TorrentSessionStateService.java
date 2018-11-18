@@ -3,16 +3,19 @@ package org.hyperborian.bt.service;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.security.Security;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 import javax.validation.constraints.NotNull;
@@ -42,23 +45,108 @@ import com.google.gson.JsonSyntaxException;
 import com.google.inject.Module;
 
 import bt.Bt;
+import bt.StandaloneClientBuilder;
 import bt.data.file.FileSystemStorage;
 import bt.dht.DHTConfig;
 import bt.dht.DHTModule;
 import bt.metainfo.Torrent;
+import bt.protocol.crypto.EncryptionPolicy;
 import bt.runtime.BtClient;
+import bt.runtime.Config;
 import bt.torrent.TorrentSessionState;
-import bt.torrent.fileselector.TorrentFileSelector;
 import bt.torrent.selector.PieceSelector;
+import bt.torrent.selector.RarestFirstSelector;
 import bt.torrent.selector.SequentialSelector;
 
 @Path(value = "/")
 public class TorrentSessionStateService implements Consumer<TorrentSessionState>{
 	
-	public static Map<String , Consumer<TorrentSessionState>>torrentSessionState = new HashMap<String , Consumer<TorrentSessionState>>();
+	static {
+		configureSecurity();
+	}
+	
+	public TorrentSessionStateService() {
+		
+		if(builder==null) {
+		
+	   	 	config = new Config() {
+	 		
+	   		@Override
+		   		public int getAcceptorPort() {
+		   			return 6879;
+		   		}
+	           @Override
+	           public int getNumOfHashingThreads() {
+	               return Runtime.getRuntime().availableProcessors();
+	           }
+	           
+	           @Override
+	           public EncryptionPolicy getEncryptionPolicy() {
+	               return EncryptionPolicy.PREFER_PLAINTEXT; 
+	           }
+	   	 	};
+	   	 	Module module = new DHTModule (new DHTConfig() {
+	   		
+		   		@Override
+		   		public int getListeningPort() {
+		   			return 49002;
+		   		}
+		   		@Override
+		   		public boolean shouldUseRouterBootstrap() {
+		   			return true;
+		   		}
+		   		
+		   		@Override
+		   		public boolean shouldUseIPv6() {
+		   			return false;
+		   		}
+		   		
+				@Override
+				public boolean getShutdownAfterClientStop() {
+					// TODO Auto-generated method stub
+					return false;
+				}
+
+		   		
+	   	 	});
+	   	 	builder = Bt.client().config(config).autoLoadModules().module(module).selector(RarestFirstSelector.randomizedRarest());
+		}
+	}
+	
+	private static void configureSecurity() {
+	    // Starting with JDK 8u152 this is a way 
+	    //   to programmatically allow unlimited encryption
+	    // See http://www.oracle.com/technetwork/java/javase/8u152-relnotes-3850503.html
+	    String key = "crypto.policy";
+	    String value = "unlimited";
+	    try {
+	        Security.setProperty(key, value);
+	    } catch (Exception e) {
+	        System.err.println(String.format(
+	              "Failed to set security property '%s' to '%s'", key, value));
+	    }
+	}
+	
+	public static Map<String , TorrentSessionStateService> torrentSessionState = new HashMap<String ,TorrentSessionStateService>();
 	
 	private BtClient client;
 	
+	public static StandaloneClientBuilder builder;
+	
+	public BtClient getClient() {
+		return client;
+	}
+
+	public void setClient(BtClient client) {
+		this.client = client;
+	}
+	
+	private Config config;
+	
+	public Config getRuntimeConfig() {
+		return config;
+	}
+
 	static final String localTorrentDownloadPath="C:\\Users\\Vadym\\Downloads\\apache-tomcat-8.5.27\\webapps\\bt-streaming-service\\torrent-data";
 	
 	private FileSystemStorage storage;
@@ -116,11 +204,16 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		String torrentFilePath = path.iterator().next();
     	String pathHash = Hashing.sha256().hashString(torrentFilePath, Charsets.UTF_8 ).toString();
     	String sessionKey = infoHash+"|"+pathHash;
-    	Consumer<TorrentSessionState> tss = torrentSessionState.get(sessionKey);
+    	TorrentSessionStateService tss = torrentSessionState.get(sessionKey);
     	if(tss!=null) {
-    	    ResponseBuilder response = Response.ok();
-    	    response.status( Response.Status.NOT_MODIFIED);
-            return response.build();
+    		if(tss.getClient().isStarted()) {
+	    	    ResponseBuilder response = Response.ok();
+	    	    response.status( Response.Status.NOT_MODIFIED);
+	            return response.build();
+    		}
+    		/**
+    		 * else torrent client is going to be initialize egain
+    		 */
     	}
 		tm = new TorrentMetainfo();
 		tm.setTorrentFilePath(torrentFilePath);
@@ -133,23 +226,20 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 			Files.createDirectory(pathToFile);
 		}
 		storage = new FileSystemStorage(pathToFile);
-    	PieceSelector pieceSelector = SequentialSelector.sequential();
-    	Module module = new DHTModule (new DHTConfig() {
-    		
-    		@Override
-    		public int getListeningPort() {
-    			return 49002;
-    		}
-    		@Override
-    		public boolean shouldUseRouterBootstrap() {
-    			return true;
-    		}
-    		
-    		@Override
-    		public boolean shouldUseIPv6() {
-    			return false;
-    		}
-    	});
+		PieceSelector pieceSelector = null;
+		switch (tm.getContentType()) {
+		case audio_mpeg:
+			pieceSelector = RarestFirstSelector.randomizedRarest();
+			break;
+		case video_mp4:
+			pieceSelector = SequentialSelector.sequential();
+			break;
+		default:
+			pieceSelector = RarestFirstSelector.randomizedRarest();
+			break;
+		}
+    	
+    	
     	Consumer<Torrent> torrentConsumer = new Consumer<Torrent>() {
 
 			@Override
@@ -162,7 +252,8 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
     		
     	};
 		
-    	client = Bt.client().storage(storage).autoLoadModules().module(module).selector(pieceSelector).fileSelector(fileSelector).magnet(magnetUri).afterTorrentFetched(torrentConsumer).build();
+    	client = builder.storage(storage).afterTorrentFetched(torrentConsumer).fileSelector(fileSelector).magnet(magnetUri).build();
+
 		client.startAsync(this, 1000);    	
     	torrentSessionState.put(sessionKey, this);
 
@@ -173,16 +264,16 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 
 	@Override
 	public void accept(TorrentSessionState t) {
+		tm.setSize(fileSelector.getSize());
 		if(t.getPiecesRemaining()==0) {
 			client.stop();
+			//TODO workarond for small files 
+			chunkComplete = 30;
 		} else {
-			tm.setSize(fileSelector.getSize());
 			chunkComplete = t.getPiecesComplete();
 			System.err.println("**********************************************");
 			System.err.println("************************************** Pieces:"+t.getPiecesComplete());
 			System.err.println("**********************************************");
-			
-			
 		}
 	}
 	
@@ -222,7 +313,6 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
     // for clients to check whether the server supports range / partial content requests
     @HEAD
     @Path("/stream/{infoHash}/{pathHashSet}")
-    @Produces("video/mp4")
     public Response header(@HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet) {
     	logger.info("@HEAD request received");
     	
@@ -248,12 +338,12 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
         		.status( Response.Status.PARTIAL_CONTENT )
         		.header( HttpHeaders.CONTENT_LENGTH, tm.getSize() )
         		.header( "Accept-Ranges", "bytes" )
+        		.header( HttpHeaders.CONTENT_TYPE, tm.getContentType().toString() )
         		.build();
     }
 	
     @GET
     @Path("/stream/{infoHash}/{pathHashSet}")
-    @Produces("video/mp4")
     public Response stream( @HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet) throws Exception {
     	
     	String sessionKey = infoHash+"|"+pathHashSet;
@@ -273,7 +363,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		if(!torrentFile.exists()) {
 			return Response.status(Status.NOT_FOUND).build();
 		}
-        return buildStream( torrentFile, range );
+        return buildStream(tm, torrentFile, range );
     }
     
     
@@ -283,7 +373,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
      * @return Streaming output
      * @throws Exception IOException if an error occurs in streaming.
      */
-    private Response buildStream( final File asset, final String range ) throws Exception {
+    private Response buildStream(TorrentMetainfo tm, final File asset, final String range ) throws Exception {
         // range not requested: firefox does not send range headers
         if ( range == null ) {
         	logger.info("Request does not contain a range parameter!");
@@ -302,6 +392,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
             return Response.ok( streamer )
             		.status( Response.Status.OK )
             		.header( HttpHeaders.CONTENT_LENGTH, asset.length() )
+            		.header( HttpHeaders.CONTENT_TYPE, tm.getContentType().toString() )
             		.build();
         }
 
@@ -331,11 +422,13 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
         
         logger.info( "Response Content-Range: " + responseRange + "\n");
         
-        final RandomAccessFile raf = new RandomAccessFile( asset, "r" );
-        raf.seek( from );
+        //final RandomAccessFile raf = new RandomAccessFile( asset, "r" );
+        final SeekableByteChannel sbc = Files.newByteChannel(asset.toPath(), StandardOpenOption.READ);
+        sbc.position(from);
+        //raf.seek( from );
 
         final int len = to - from + 1;
-        final MediaStreamer mediaStreamer = new MediaStreamer( len, raf );
+        final MediaStreamer mediaStreamer = new MediaStreamer( len, sbc );
 
         return Response.ok( mediaStreamer )
                 .status( Response.Status.PARTIAL_CONTENT )
@@ -343,6 +436,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
                 .header( "Content-Range", responseRange )
                 .header( HttpHeaders.CONTENT_LENGTH, mediaStreamer. getLenth() )
                 .header( HttpHeaders.LAST_MODIFIED, new Date( asset.lastModified() ) )
+                .header( HttpHeaders.CONTENT_TYPE, tm.getContentType().toString() )
                 .build();
     }
     

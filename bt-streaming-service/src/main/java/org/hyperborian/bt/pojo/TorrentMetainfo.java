@@ -1,14 +1,43 @@
 package org.hyperborian.bt.pojo;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 public class TorrentMetainfo {
+	
+	public enum ContentType
+	{
+		video_mp4("video/mp4"),
+		audio_mpeg("audio/mpeg");
+	 
+	    private String string;
+	 
+	    ContentType(String string) {
+	        this.string = string;
+	    }
+	 
+	    public String toString() {
+	        return string;
+	    }
+	}
+	
+	static Map<String, ContentType> classes;
+	
+	static {
+		classes = new HashMap<String, ContentType>();
+		classes.put("mp4", ContentType.video_mp4);
+		classes.put("mp3", ContentType.audio_mpeg);
+		classes = Collections.unmodifiableMap(classes);
+	}
 	
 	private int totalChunks;
 	private long chunkSize;
 	private String name;
 	private long size;
 	private int torrentFilesNumber;
-	
 	private String torrentFilePath;
+	private ContentType contentType;
 
 	public String getTorrentFilePath() {
 		return torrentFilePath;
@@ -16,6 +45,22 @@ public class TorrentMetainfo {
 	
 	public void setTorrentFilePath(String torrentFilePath) {
 		this.torrentFilePath = torrentFilePath;
+		String ext = getExtension();
+		if(ext!=null) {
+			contentType = classes.get(ext);
+		}
+	}
+	
+	public String getExtension() {
+		if(torrentFilePath==null) {
+			return null;
+		}
+		int i = torrentFilePath.lastIndexOf('.');
+		if (i > 0) {
+		    return new String(torrentFilePath.substring(i+1)).toLowerCase();
+		} else {
+			return null;
+		}
 	}
 	
 	public int getTotalChunks() {
@@ -49,6 +94,14 @@ public class TorrentMetainfo {
 
 	public void setTorrentFilesNumber(int torrentFilesNumber) {
 		this.torrentFilesNumber = torrentFilesNumber;
+	}
+
+	public ContentType getContentType() {
+		return contentType;
+	}
+
+	public void setContentType(ContentType contentType) {
+		this.contentType = contentType;
 	}
 
 }

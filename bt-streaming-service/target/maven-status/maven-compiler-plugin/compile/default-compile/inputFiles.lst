@@ -1,7 +1,10 @@
-C:\Users\Vadym\eclipse-workspace\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\HttpTorrentStorage.java
-C:\Users\Vadym\eclipse-workspace\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\HttpTorrentStorageUnit.java
-C:\Users\Vadym\eclipse-workspace\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\ConcatInputStream.java
-C:\Users\Vadym\eclipse-workspace\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\ByteBufferOutputStream.java
-C:\Users\Vadym\eclipse-workspace\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\StorageUnitListener.java
-C:\Users\Vadym\eclipse-workspace\bt-streaming-service\src\main\java\org\hyperborian\bt\client\App.java
-C:\Users\Vadym\eclipse-workspace\bt-streaming-service\src\main\java\org\hyperborian\bt\service\HttpStreamingTorrentService.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\client\App.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\StreamingFileSystemStorageUnit.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\service\PathTorrentFileSelector.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\service\TorrentSessionStateService.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\pojo\TorrentMetainfo.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\StreamingFileSystemStorage.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\map\MaxSizeSortedMap.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\MediaStreamer.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\PathNormalizer.java
+C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\service\TorentDownloadLongOperation.java

@@ -2,7 +2,8 @@ package org.hyperborian.bt.stream;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
@@ -15,25 +16,31 @@ import javax.ws.rs.core.StreamingOutput;
 public class MediaStreamer implements StreamingOutput {
 
     private int length;
-    private RandomAccessFile raf;
+    private SeekableByteChannel sbc;
     final byte[] buf = new byte[4096];
 
-    public MediaStreamer(int length, RandomAccessFile raf) {
+    public MediaStreamer(int length, SeekableByteChannel sbc) {
         this.length = length;
-        this.raf = raf;
+        this.sbc = sbc;
     }
 
     @Override
     public void write( OutputStream outputStream ) throws IOException, WebApplicationException {
         try {
-            while( length != 0) {
-                int read = raf.read(buf, 0, buf.length > length ? length : buf.length);
-                outputStream.write(buf, 0, read);
-                length -= read;
+        	
+        	ByteBuffer buf = ByteBuffer.allocate(length);
+            int read = 1;
+            while(buf.hasRemaining() && read > 0) {
+              read = sbc.read(buf);
+            }
+            try {
+            	outputStream.write(buf.array());
+            } catch(java.net.SocketTimeoutException ex) {
+            	
             }
         } 
         finally {
-            raf.close();
+            sbc.close();
         }
     }
 
