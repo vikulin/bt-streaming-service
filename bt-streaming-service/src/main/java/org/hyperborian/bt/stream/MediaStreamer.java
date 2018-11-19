@@ -17,7 +17,7 @@ public class MediaStreamer implements StreamingOutput {
 
     private int length;
     private SeekableByteChannel sbc;
-    final byte[] buf = new byte[4096];
+    final byte[] buf = new byte[8192];
 
     public MediaStreamer(int length, SeekableByteChannel sbc) {
         this.length = length;
@@ -35,11 +35,15 @@ public class MediaStreamer implements StreamingOutput {
             }
             try {
             	outputStream.write(buf.array());
+            	outputStream.flush();
             } catch(java.net.SocketTimeoutException ex) {
-            	
+            	ex.printStackTrace();
+            } catch(java.io.IOException ex) {
+            	ex.printStackTrace();
             }
         } 
         finally {
+        	outputStream.close();
             sbc.close();
         }
     }

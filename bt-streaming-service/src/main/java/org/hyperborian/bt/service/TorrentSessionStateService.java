@@ -15,12 +15,12 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
 import javax.ws.rs.HeaderParam;
@@ -35,6 +35,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.http.HttpHeaders;
 import org.apache.log4j.Logger;
+import org.hyperborian.bt.pojo.TorrentDownloadStatus;
 import org.hyperborian.bt.pojo.TorrentMetainfo;
 import org.hyperborian.bt.stream.MediaStreamer;
 
@@ -111,7 +112,11 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	   	 	});
 	   	 	builder = Bt.client().config(config).autoLoadModules().module(module).selector(RarestFirstSelector.randomizedRarest());
 		}
+		
+		gson = new Gson();
 	}
+	
+	private Gson gson;
 	
 	private static void configureSecurity() {
 	    // Starting with JDK 8u152 this is a way 
@@ -161,18 +166,18 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		return tm;
 	}
 
-	private int chunkComplete;
+	private TorrentDownloadStatus status;
 
-	public int getChunkComplete() {
-		return chunkComplete;
+	public TorrentDownloadStatus getStatus() {
+		return status;
 	}
-	
+
 	private Object getPath(String pathSet) {
 		if(pathSet==null || pathSet.trim().length()==0) {
 			return Response.status(Status.BAD_REQUEST).build();
 		}
 		
-		Gson gson = new Gson();
+		
 		Set<String> path = null;
 		try {
 			path = gson.fromJson(pathSet, Set.class);
@@ -215,6 +220,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
     		 * else torrent client is going to be initialize egain
     		 */
     	}
+    	status = new TorrentDownloadStatus();
 		tm = new TorrentMetainfo();
 		tm.setTorrentFilePath(torrentFilePath);
 		fileSelector = new PathTorrentFileSelector(torrentFilePath);
@@ -266,11 +272,13 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	public void accept(TorrentSessionState t) {
 		tm.setSize(fileSelector.getSize());
 		if(t.getPiecesRemaining()==0) {
-			client.stop();
+			//client.stop();
 			//TODO workarond for small files 
-			chunkComplete = 30;
+			//chunkComplete = 30;
+			status.setComplete(true);
+			status.setChunkComplete(t.getPiecesComplete());
 		} else {
-			chunkComplete = t.getPiecesComplete();
+			status.setChunkComplete(t.getPiecesComplete());
 			System.err.println("**********************************************");
 			System.err.println("************************************** Pieces:"+t.getPiecesComplete());
 			System.err.println("**********************************************");
@@ -278,17 +286,17 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	}
 	
 	@GET
-	@Path("/chunk/{infoHash}/{pathHashSet}")
+	@Path("/status/{infoHash}/{pathHashSet}")
 	@Produces("application/json")
 	public Response getChunkNumber(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet)  throws Exception  {
 		
 		String sessionKey = infoHash+"|"+pathHashSet;
-		Consumer<TorrentSessionState> torrentState = torrentSessionState.get(sessionKey);
+		TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
 		}
-		int chunkConplete = ((TorrentSessionStateService)torrentState).getChunkComplete();
-		ResponseBuilder response = Response.ok().entity(chunkConplete+"");
+		String status = gson.toJson(torrentState.getStatus());
+		ResponseBuilder response = Response.ok().entity(status);
 	    response.status(Response.Status.OK);
         return response.build();
 	}
@@ -299,12 +307,12 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	public Response getTorrentMetainfo(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet)  throws Exception  {
 		
 		String sessionKey = infoHash+"|"+pathHashSet;
-		Consumer<TorrentSessionState> torrentState = torrentSessionState.get(sessionKey);
+		TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
 		}
-		TorrentMetainfo tm = ((TorrentSessionStateService)torrentState).getTorrentMetainfo();
-		Gson gson = new Gson();
+		TorrentMetainfo tm = torrentState.getTorrentMetainfo();
+		
 		ResponseBuilder response = Response.ok().entity(gson.toJson(tm, TorrentMetainfo.class));
 	    response.status(Response.Status.OK);
         return response.build();
@@ -317,11 +325,11 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
     	logger.info("@HEAD request received");
     	
     	String sessionKey = infoHash+"|"+pathHashSet;
-		Consumer<TorrentSessionState> torrentState = torrentSessionState.get(sessionKey);
+    	TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
 		}
-		TorrentMetainfo tm = ((TorrentSessionStateService)torrentState).getTorrentMetainfo();
+		TorrentMetainfo tm = torrentState.getTorrentMetainfo();
 		String torrentFilePath = tm.getTorrentFilePath();
 		File torrentFile;
 		if(tm.getTorrentFilesNumber()>1) {
@@ -341,17 +349,46 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
         		.header( HttpHeaders.CONTENT_TYPE, tm.getContentType().toString() )
         		.build();
     }
+    
+    // stop bt client gracefully
+    @DELETE
+    @Path("/stream/{infoHash}/{pathHashSet}")
+    public Response deleteTorrent(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet) {
+    	logger.info("@DELETE request received");
+    	
+    	String sessionKey = infoHash+"|"+pathHashSet;
+    	TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
+		if(torrentState==null) {
+			return Response.status(Status.NOT_FOUND).build();
+		}
+		TorrentMetainfo tm = torrentState.getTorrentMetainfo();
+		String torrentFilePath = tm.getTorrentFilePath();
+		File torrentFile;
+		if(tm.getTorrentFilesNumber()>1) {
+			String name = tm.getName();
+			torrentFile = new File(localTorrentDownloadPath+"/"+name+"/"+torrentFilePath);
+		} else {
+			torrentFile = new File(localTorrentDownloadPath+"/"+torrentFilePath);
+		}
+		if(torrentFile.exists()) {
+			//TODO check that the file is not being playing for enyone
+			//torrentFile.delete();
+			//torrentSessionState.remove(sessionKey);
+		}
+		torrentState.getClient().stop();
+        return Response.ok().status(Response.Status.ACCEPTED).build();
+    }
 	
     @GET
     @Path("/stream/{infoHash}/{pathHashSet}")
     public Response stream( @HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet) throws Exception {
     	
     	String sessionKey = infoHash+"|"+pathHashSet;
-		Consumer<TorrentSessionState> torrentState = torrentSessionState.get(sessionKey);
+    	TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
 		}
-        TorrentMetainfo tm = ((TorrentSessionStateService)torrentState).getTorrentMetainfo();
+        TorrentMetainfo tm = torrentState.getTorrentMetainfo();
 		String torrentFilePath = tm.getTorrentFilePath();
 		File torrentFile;
 		if(tm.getTorrentFilesNumber()>1) {
