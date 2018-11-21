@@ -9,8 +9,13 @@ public class TorrentMetainfo {
 	public enum ContentType
 	{
 		video_mp4("video/mp4"),
-		audio_mpeg("audio/mpeg");
-	 
+		audio_mpeg("audio/mpeg"),
+		text_html("text/html"),
+		text_plain("text/plain"),
+		application_pdf("application/pdf"),
+		application_msword("application/msword"),
+		image_jpeg(" image/jpeg");
+		
 	    private String string;
 	 
 	    ContentType(String string) {
@@ -28,6 +33,13 @@ public class TorrentMetainfo {
 		classes = new HashMap<String, ContentType>();
 		classes.put("mp4", ContentType.video_mp4);
 		classes.put("mp3", ContentType.audio_mpeg);
+		classes.put("html", ContentType.text_html);
+		classes.put("txt", ContentType.text_plain);
+		classes.put("pdf", ContentType.application_pdf);
+		classes.put("doc", ContentType.application_msword);
+		classes.put("jpeg", ContentType.image_jpeg);
+		classes.put("jpg", ContentType.image_jpeg);
+		
 		classes = Collections.unmodifiableMap(classes);
 	}
 	
