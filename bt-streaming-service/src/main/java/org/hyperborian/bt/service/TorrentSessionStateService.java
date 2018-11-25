@@ -211,9 +211,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
     	String sessionKey = infoHash+"|"+pathHash;
     	TorrentSessionStateService tss = torrentSessionState.get(sessionKey);
     	if(tss!=null) {
-    		if(tss.getClient().isStarted()) {
+    		if(tss.getClient().isStarted() || tss.getStatus().isComplete()) {
 	    	    ResponseBuilder response = Response.ok();
-	    	    response.status( Response.Status.NOT_MODIFIED);
+	    	    response.status(Response.Status.NOT_MODIFIED);
 	            return response.build();
     		}
     		/**
@@ -376,7 +376,8 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		torrentState.getClient().stop();
         return Response.ok().status(Response.Status.ACCEPTED).build();
     }
-	
+
+    
     @GET
     @Path("/stream/{infoHash}/{pathHashSet}")
     public Response stream( @HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet) throws Exception {
