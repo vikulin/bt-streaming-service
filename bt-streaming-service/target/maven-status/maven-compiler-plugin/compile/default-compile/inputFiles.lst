@@ -2,7 +2,6 @@ C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\h
 C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\StreamingFileSystemStorageUnit.java
 C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\service\PathTorrentFileSelector.java
 C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\service\TorrentSessionStateService.java
-C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\pojo\TorrentMetainfo.java
 C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\StreamingFileSystemStorage.java
 C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\map\MaxSizeSortedMap.java
 C:\Users\Vadym\git\bt-streaming-service\bt-streaming-service\src\main\java\org\hyperborian\bt\stream\MediaStreamer.java

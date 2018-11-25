@@ -110,7 +110,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 
 		   		
 	   	 	});
-	   	 	builder = Bt.client().config(config).autoLoadModules().module(module).selector(RarestFirstSelector.randomizedRarest());
+	   	 	builder = Bt.client().config(config).disableAutomaticShutdown().autoLoadModules().module(module).selector(RarestFirstSelector.randomizedRarest());
 		}
 		
 		gson = new Gson();
@@ -272,9 +272,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	public void accept(TorrentSessionState t) {
 		tm.setSize(fileSelector.getSize());
 		if(t.getPiecesRemaining()==0) {
-			//client.stop();
-			//TODO workarond for small files 
-			//chunkComplete = 30;
+			client.stop();
 			status.setComplete(true);
 			status.setChunkComplete(t.getPiecesComplete());
 		} else {

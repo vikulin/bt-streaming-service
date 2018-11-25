@@ -36,6 +36,11 @@
 	
 
     <dependencies>
+	    <dependency>
+	    	  <groupId>org.hyperborian</groupId>
+			  <artifactId>bt-pojo</artifactId>
+			  <version>0.0.1-SNAPSHOT</version>
+	    </dependency>
 		<dependency>
             <groupId>com.github.atomashpolskiy</groupId>
             <artifactId>bt-core</artifactId>

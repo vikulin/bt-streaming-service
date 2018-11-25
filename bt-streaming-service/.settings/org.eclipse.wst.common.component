@@ -4,6 +4,12 @@
         <wb-resource deploy-path="/" source-path="/WebContent" tag="defaultRootSource"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src/main/java"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src/main/resources"/>
+        <dependent-module archiveName="bt-pojo-0.0.1-SNAPSHOT.jar" deploy-path="/WEB-INF/lib" handle="module:/resource/bt-pojo/bt-pojo">
+            <dependency-type>uses</dependency-type>
+        </dependent-module>
+        <dependent-module archiveName="bt-core-1.8-SNAPSHOT.jar" deploy-path="/WEB-INF/lib" handle="module:/resource/bt-core/bt-core">
+            <dependency-type>uses</dependency-type>
+        </dependent-module>
         <property name="context-root" value="bt-streaming-service"/>
         <property name="java-output-path" value="/bt-streaming-service/build/classes"/>
     </wb-module>
