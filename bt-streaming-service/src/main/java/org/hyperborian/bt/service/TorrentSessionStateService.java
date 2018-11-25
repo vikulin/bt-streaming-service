@@ -14,10 +14,9 @@ import java.security.Security;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TimerTask;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
@@ -116,6 +115,18 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		}
 		
 		gson = new Gson();
+	}
+	
+	class TineoutTimerTask extends TimerTask {
+
+		@Override
+		public void run() {
+			/**
+			 * After timeout occurs stop corresponding client and delete it from map
+			 */
+			client.stop();
+		}
+		
 	}
 	
 	private Gson gson;
@@ -279,15 +290,29 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	    response.status( Response.Status.CREATED);
         return response.build();
 	}
-
+	
+	int timer=0;
+	
+	int masInactivityThreshold = 300;//5 min
+	
 	@Override
 	public void accept(TorrentSessionState t) {
+		
 		tm.setSize(fileSelector.getSize());
 		if(t.getPiecesRemaining()==0) {
 			client.stop();
 			status.setComplete(true);
 			status.setChunkComplete(t.getPiecesComplete());
 		} else {
+			if(t.getPiecesComplete()==status.getChunkComplete()) {
+				timer++;
+			} else {
+				timer=0;
+			}
+			if(timer>masInactivityThreshold) {
+				client.stop();
+				status.setError("Timeout occured: download inactivity exceeded 5 min.");
+			}
 			status.setChunkComplete(t.getPiecesComplete());
 			System.err.println("**********************************************");
 			System.err.println("************************************** Pieces:"+t.getPiecesComplete());
@@ -451,7 +476,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
         int from = Integer.parseInt( ranges[0] );
         
         // Chunk media if the range upper bound is unspecified
-        int to = chunk_size + from;
+        int to = chunkSize + from;
         
         if ( to >= asset.length() ) {
             to = (int) ( asset.length() - 1 );
@@ -461,7 +486,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
         // we want to send 2 MB chunks all the time
         if ( ranges.length == 2 ) {
         	int tmp = Integer.parseInt( ranges[1] );
-        	if(tmp-from<=5*chunk_size) {
+        	if(tmp-from<=5*chunkSize) {
         		to=tmp;
         	}
         }
@@ -488,7 +513,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
                 .build();
     }
     
-    private final int chunk_size = 1024 * 1024 * 2; // 2 MB chunks
+    private final int chunkSize = 1024 * 1024 * 2; // 2 MB chunks
     
     final static Logger logger = Logger.getLogger( TorrentSessionStateService.class );
     
