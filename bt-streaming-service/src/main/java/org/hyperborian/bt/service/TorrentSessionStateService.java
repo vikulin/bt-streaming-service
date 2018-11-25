@@ -14,8 +14,10 @@ import java.security.Security;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
@@ -250,10 +252,20 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 
 			@Override
 			public void accept(Torrent t) {
-				tm.setChunkSize(t.getChunkSize());
-				tm.setName(t.getName());
-				tm.setTotalChunks((int) Math.ceil(t.getSize() / t.getChunkSize()));
-				tm.setTorrentFilesNumber(t.getFiles().size());
+				torrentSessionState.entrySet().stream().filter(entry->entry.getKey().contains(t.getTorrentId().toString())).forEach(entry->{
+					TorrentMetainfo tm = entry.getValue().getTorrentMetainfo();
+					tm.setChunkSize(t.getChunkSize());
+					tm.setName(t.getName());
+					tm.setTotalChunks((int) Math.ceil(t.getSize() / t.getChunkSize()));
+					tm.setTorrentFilesNumber(t.getFiles().size());
+				});
+				
+				/*for(Entry<String, TorrentSessionStateService> entry:keys) {
+					entry.getValue().getTorrentMetainfo().setChunkSize(t.getChunkSize());
+					tm.setName(t.getName());
+					tm.setTotalChunks((int) Math.ceil(t.getSize() / t.getChunkSize()));
+					tm.setTorrentFilesNumber(t.getFiles().size());
+				}*/
 			}
     		
     	};
