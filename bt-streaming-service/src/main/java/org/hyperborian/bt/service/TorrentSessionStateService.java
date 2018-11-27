@@ -292,7 +292,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	}
 	
 	int timer=0;
-	
+	/**
+	 * it could be more accurate if chunk size is very big
+	 */
 	int masInactivityThreshold = 300;//5 min
 	
 	@Override
@@ -374,7 +376,13 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 			torrentFile = new File(localTorrentDownloadPath+"/"+torrentFilePath);
 		}
 		if(!torrentFile.exists()) {
-			return Response.status(Status.NOT_FOUND).build();
+			TorrentSessionStateService session = torrentSessionState.remove(sessionKey);
+			if(session!=null) {
+				session.getClient().stop();
+				return Response.status(Status.TEMPORARY_REDIRECT).build();
+			} else {
+				return Response.status(Status.NOT_FOUND).build();
+			}
 		}
         
         return Response.ok()
@@ -409,6 +417,14 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 			//TODO check that the file is not being playing for enyone
 			//torrentFile.delete();
 			//torrentSessionState.remove(sessionKey);
+		} else {
+			TorrentSessionStateService session = torrentSessionState.remove(sessionKey);
+			if(session!=null) {
+				session.getClient().stop();
+				return Response.status(Status.TEMPORARY_REDIRECT).build();
+			} else {
+				return Response.status(Status.NOT_FOUND).build();
+			}
 		}
 		torrentState.getClient().stop();
         return Response.ok().status(Response.Status.ACCEPTED).build();
@@ -434,7 +450,13 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 			torrentFile = new File(localTorrentDownloadPath+"/"+torrentFilePath);
 		}
 		if(!torrentFile.exists()) {
-			return Response.status(Status.NOT_FOUND).build();
+			TorrentSessionStateService session = torrentSessionState.remove(sessionKey);
+			if(session!=null) {
+				session.getClient().stop();
+				return Response.status(Status.TEMPORARY_REDIRECT).build();
+			} else {
+				return Response.status(Status.NOT_FOUND).build();
+			}
 		}
         return buildStream(tm, torrentFile, range );
     }
