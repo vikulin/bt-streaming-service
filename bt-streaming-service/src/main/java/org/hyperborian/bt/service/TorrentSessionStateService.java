@@ -189,8 +189,6 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		if(pathSet==null || pathSet.trim().length()==0) {
 			return Response.status(Status.BAD_REQUEST).build();
 		}
-		
-		
 		Set<String> path = null;
 		try {
 			path = gson.fromJson(pathSet, Set.class);
@@ -240,9 +238,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		//String magnetUri = "magnet:?xt=urn:btih:a9b09d61aaa9090a5fa77f7da02bcd78b80f6f85&dn=example.torrent";
 
 		String magnetUri = "magnet:?xt=urn:btih:"+infoHash;
-		pathToFile = Paths.get(localTorrentDownloadPath);
+		pathToFile = Paths.get(localTorrentDownloadPath,infoHash);
 		if(!pathToFile.toFile().exists()) {
-			Files.createDirectory(pathToFile);
+			Files.createDirectories(pathToFile);
 		}
 		storage = new FileSystemStorage(pathToFile);
 		PieceSelector pieceSelector = null;
@@ -270,15 +268,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 					tm.setTotalChunks((int) Math.ceil(t.getSize() / t.getChunkSize()));
 					tm.setTorrentFilesNumber(t.getFiles().size());
 				});
-				
-				/*for(Entry<String, TorrentSessionStateService> entry:keys) {
-					entry.getValue().getTorrentMetainfo().setChunkSize(t.getChunkSize());
-					tm.setName(t.getName());
-					tm.setTotalChunks((int) Math.ceil(t.getSize() / t.getChunkSize()));
-					tm.setTorrentFilesNumber(t.getFiles().size());
-				}*/
 			}
-    		
     	};
 		
     	client = builder.storage(storage).afterTorrentFetched(torrentConsumer).fileSelector(fileSelector).magnet(magnetUri).build();
@@ -371,9 +361,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		File torrentFile;
 		if(tm.getTorrentFilesNumber()>1) {
 			String name = tm.getName();
-			torrentFile = new File(localTorrentDownloadPath+"/"+name+"/"+torrentFilePath);
+			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+name+"/"+torrentFilePath);
 		} else {
-			torrentFile = new File(localTorrentDownloadPath+"/"+torrentFilePath);
+			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+torrentFilePath);
 		}
 		if(!torrentFile.exists()) {
 			TorrentSessionStateService session = torrentSessionState.remove(sessionKey);
@@ -409,9 +399,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		File torrentFile;
 		if(tm.getTorrentFilesNumber()>1) {
 			String name = tm.getName();
-			torrentFile = new File(localTorrentDownloadPath+"/"+name+"/"+torrentFilePath);
+			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+name+"/"+torrentFilePath);
 		} else {
-			torrentFile = new File(localTorrentDownloadPath+"/"+torrentFilePath);
+			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+torrentFilePath);
 		}
 		if(torrentFile.exists()) {
 			//TODO check that the file is not being playing for enyone
@@ -445,9 +435,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		File torrentFile;
 		if(tm.getTorrentFilesNumber()>1) {
 			String name = tm.getName();
-			torrentFile = new File(localTorrentDownloadPath+"/"+name+"/"+torrentFilePath);
+			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+name+"/"+torrentFilePath);
 		} else {
-			torrentFile = new File(localTorrentDownloadPath+"/"+torrentFilePath);
+			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+torrentFilePath);
 		}
 		if(!torrentFile.exists()) {
 			TorrentSessionStateService session = torrentSessionState.remove(sessionKey);
