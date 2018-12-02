@@ -14,6 +14,7 @@ import java.security.Security;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TimerTask;
 import java.util.function.Consumer;
@@ -63,8 +64,15 @@ import bt.torrent.selector.SequentialSelector;
 @Path(value = "/")
 public class TorrentSessionStateService implements Consumer<TorrentSessionState>{
 	
+	private static Properties properties = new Properties();
+	
 	static {
 		configureSecurity();
+		try {
+			properties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("server.properties"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public TorrentSessionStateService() {
@@ -165,7 +173,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		return config;
 	}
 
-	static final String localTorrentDownloadPath="C:\\Users\\Vadym\\Downloads\\apache-tomcat-8.5.27\\webapps\\bt-streaming-service\\torrent-data";
+	private static String getDownloadPath(){
+		return properties.getProperty("download_path");
+	}
 	
 	private FileSystemStorage storage;
 	
@@ -238,7 +248,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		//String magnetUri = "magnet:?xt=urn:btih:a9b09d61aaa9090a5fa77f7da02bcd78b80f6f85&dn=example.torrent";
 
 		String magnetUri = "magnet:?xt=urn:btih:"+infoHash;
-		pathToFile = Paths.get(localTorrentDownloadPath,infoHash);
+		pathToFile = Paths.get(getDownloadPath(),infoHash);
 		if(!pathToFile.toFile().exists()) {
 			Files.createDirectories(pathToFile);
 		}
@@ -361,9 +371,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		File torrentFile;
 		if(tm.getTorrentFilesNumber()>1) {
 			String name = tm.getName();
-			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+name+"/"+torrentFilePath);
+			torrentFile = new File(getDownloadPath()+"/"+infoHash+"/"+name+"/"+torrentFilePath);
 		} else {
-			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+torrentFilePath);
+			torrentFile = new File(getDownloadPath()+"/"+infoHash+"/"+torrentFilePath);
 		}
 		if(!torrentFile.exists()) {
 			TorrentSessionStateService session = torrentSessionState.remove(sessionKey);
@@ -399,9 +409,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		File torrentFile;
 		if(tm.getTorrentFilesNumber()>1) {
 			String name = tm.getName();
-			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+name+"/"+torrentFilePath);
+			torrentFile = new File(getDownloadPath()+"/"+infoHash+"/"+name+"/"+torrentFilePath);
 		} else {
-			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+torrentFilePath);
+			torrentFile = new File(getDownloadPath()+"/"+infoHash+"/"+torrentFilePath);
 		}
 		if(torrentFile.exists()) {
 			//TODO check that the file is not being playing for enyone
@@ -435,9 +445,9 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		File torrentFile;
 		if(tm.getTorrentFilesNumber()>1) {
 			String name = tm.getName();
-			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+name+"/"+torrentFilePath);
+			torrentFile = new File(getDownloadPath()+"/"+infoHash+"/"+name+"/"+torrentFilePath);
 		} else {
-			torrentFile = new File(localTorrentDownloadPath+"/"+infoHash+"/"+torrentFilePath);
+			torrentFile = new File(getDownloadPath()+"/"+infoHash+"/"+torrentFilePath);
 		}
 		if(!torrentFile.exists()) {
 			TorrentSessionStateService session = torrentSessionState.remove(sessionKey);
