@@ -83,7 +83,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	 		
 	   		@Override
 		   		public int getAcceptorPort() {
-		   			return 6879;
+		   			return getAcceptorTcpPort();
 		   		}
 	           @Override
 	           public int getNumOfHashingThreads() {
@@ -99,7 +99,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	   		
 		   		@Override
 		   		public int getListeningPort() {
-		   			return 49002;
+		   			return getDhtUdpPath();
 		   		}
 		   		@Override
 		   		public boolean shouldUseRouterBootstrap() {
@@ -108,7 +108,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		   		
 		   		@Override
 		   		public boolean shouldUseIPv6() {
-		   			return false;
+		   			return getShouldUseIpv6();
 		   		}
 		   		
 				@Override
@@ -175,6 +175,18 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 
 	private static String getDownloadPath(){
 		return properties.getProperty("download_path");
+	}
+	
+	private static int getDhtUdpPath(){
+		return Integer.parseInt(properties.getProperty("dht_udp_port"));
+	}
+	
+	private static int getAcceptorTcpPort(){
+		return Integer.parseInt(properties.getProperty("acceptor_tcp_port"));
+	}
+	
+	private static boolean getShouldUseIpv6(){
+		return Boolean.parseBoolean(properties.getProperty("should_use_ipv6"));
 	}
 	
 	private FileSystemStorage storage;
