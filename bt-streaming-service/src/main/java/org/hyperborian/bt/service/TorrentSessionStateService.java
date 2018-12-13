@@ -173,7 +173,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		return config;
 	}
 
-	private static String getDownloadPath(){
+	public static String getDownloadPath(){
 		return properties.getProperty("download_path");
 	}
 	

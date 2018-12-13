@@ -1,1 +1,11 @@
+org\hyperborian\bt\stream\MediaStreamer.class
+org\hyperborian\bt\service\PathTorrentFileSelector.class
+org\hyperborian\bt\service\TorrentSessionStateService$1.class
 org\hyperborian\bt\service\TorrentSessionStateService$4.class
+org\hyperborian\bt\client\App$1.class
+org\hyperborian\bt\service\TorrentSessionStateService$TineoutTimerTask.class
+org\hyperborian\bt\service\TorrentSessionStateService.class
+org\hyperborian\bt\map\MaxSizeSortedMap.class
+org\hyperborian\bt\service\TorrentSessionStateService$3.class
+org\hyperborian\bt\service\TorrentSessionStateService$2.class
+org\hyperborian\bt\client\App.class
