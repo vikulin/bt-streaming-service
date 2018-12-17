@@ -3,6 +3,8 @@ package org.hyperborian.bt.service;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
@@ -11,6 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.Security;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -80,8 +84,17 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		if(builder==null) {
 		
 	   	 	config = new Config() {
+	   	 		
+	   	     public InetAddress getAcceptorAddress() {
+	   	        try {
+					return getBindIpAddress();
+				} catch (UnknownHostException e) {
+					e.printStackTrace();
+				}
+				return null;
+	   	     }
 	 		
-	   		@Override
+	   	 		@Override
 		   		public int getAcceptorPort() {
 		   			return getAcceptorTcpPort();
 		   		}
@@ -113,8 +126,17 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		   		
 				@Override
 				public boolean getShutdownAfterClientStop() {
-					// TODO Auto-generated method stub
 					return false;
+				}
+				
+				@Override
+				public Collection<InetAddress> getBindIpAddress() {
+					try {
+						return Arrays.asList(TorrentSessionStateService.getBindIpAddress());
+					} catch (UnknownHostException e) {
+						e.printStackTrace();
+					}
+					return null;
 				}
 
 		   		
@@ -179,6 +201,10 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	
 	private static int getDhtUdpPath(){
 		return Integer.parseInt(properties.getProperty("dht_udp_port"));
+	}
+	
+	private static InetAddress getBindIpAddress() throws UnknownHostException{
+		return InetAddress.getByName(properties.getProperty("bind_ip_address"));
 	}
 	
 	private static int getAcceptorTcpPort(){
