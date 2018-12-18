@@ -199,6 +199,10 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		return properties.getProperty("download_path");
 	}
 	
+	public static String getBaseUrl(){
+		return properties.getProperty("base_url");
+	}
+	
 	private static int getDhtUdpPath(){
 		return Integer.parseInt(properties.getProperty("dht_udp_port"));
 	}
@@ -325,7 +329,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
     	torrentSessionState.put(sessionKey, this);
 
 	    ResponseBuilder response = Response.ok();
-	    response.status( Response.Status.CREATED);
+	    response.status(Response.Status.CREATED);
         return response.build();
 	}
 	
