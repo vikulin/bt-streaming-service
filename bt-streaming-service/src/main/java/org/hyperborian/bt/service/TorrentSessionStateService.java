@@ -13,12 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.Security;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -59,7 +57,6 @@ import bt.data.file.FileSystemStorage;
 import bt.dht.DHTConfig;
 import bt.dht.DHTModule;
 import bt.metainfo.Torrent;
-import bt.net.InetPeerAddress;
 import bt.protocol.crypto.EncryptionPolicy;
 import bt.runtime.BtClient;
 import bt.runtime.Config;
@@ -232,6 +229,10 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	
 	static boolean getShouldUseIpv6(){
 		return Boolean.parseBoolean(properties.getProperty("should_use_ipv6"));
+	}
+	
+	static String getSeedingApiUrl(){
+		return properties.getProperty("seeding_api_url");
 	}
 	
 	private FileSystemStorage storage;
