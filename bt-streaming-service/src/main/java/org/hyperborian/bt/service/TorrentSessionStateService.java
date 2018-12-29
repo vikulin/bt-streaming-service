@@ -3,12 +3,15 @@ package org.hyperborian.bt.service;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
+import java.net.URLDecoder;
 import java.net.UnknownHostException;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -20,7 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TimerTask;
 import java.util.function.Consumer;
 
 import javax.validation.constraints.NotNull;
@@ -159,20 +161,6 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 		gson = new Gson();
 	}
 	
-	class TineoutTimerTask extends TimerTask {
-
-		@Override
-		public void run() {
-			/**
-			 * After timeout occurs stop corresponding client and delete it from map
-			 */
-			client.stop();
-		}
-		
-	}
-	
-	private Gson gson;
-	
 	private static void configureSecurity() {
 	    // Starting with JDK 8u152 this is a way 
 	    //   to programmatically allow unlimited encryption
@@ -190,6 +178,8 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	public static Map<String , TorrentSessionStateService> torrentSessionState = new HashMap<String ,TorrentSessionStateService>();
 	
 	private BtClient client;
+	
+	private Gson gson;
 	
 	public static StandaloneClientBuilder builder;
 	
@@ -381,11 +371,11 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	}
 	
 	@GET
-	@Path("/status/{infoHash}/{pathHashSet}")
+	@Path("/status/{infoHash}/{path}")
 	@Produces("application/json")
-	public Response getChunkNumber(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet)  throws Exception  {
-		
-		String sessionKey = infoHash+"|"+pathHashSet;
+	public Response getChunkNumber(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path)  throws Exception  {
+		String pathHash = Hashing.sha256().hashString(URLDecoder.decode(path, "UTF-8"), Charsets.UTF_8 ).toString();
+		String sessionKey = infoHash+"|"+pathHash;
 		TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
@@ -397,11 +387,12 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	}
 	
 	@GET
-	@Path("/metainfo/{infoHash}/{pathHashSet}")
+	@Path("/metainfo/{infoHash}/{path}")
 	@Produces("application/json")
-	public Response getTorrentMetainfo(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet)  throws Exception  {
+	public Response getTorrentMetainfo(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path)  throws Exception  {
 		
-		String sessionKey = infoHash+"|"+pathHashSet;
+		String pathHash = Hashing.sha256().hashString(URLDecoder.decode(path, "UTF-8"), Charsets.UTF_8 ).toString();
+		String sessionKey = infoHash+"|"+pathHash;
 		TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
@@ -415,11 +406,12 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	
     // for clients to check whether the server supports range / partial content requests
     @HEAD
-    @Path("/stream/{infoHash}/{pathHashSet}")
-    public Response header(@HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet) {
+    @Path("/stream/{infoHash}/{path}")
+    public Response header(@HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path) throws UnsupportedEncodingException {
     	logger.info("@HEAD request received");
     	
-    	String sessionKey = infoHash+"|"+pathHashSet;
+    	String pathHash = Hashing.sha256().hashString(URLDecoder.decode(path, "UTF-8"), Charsets.UTF_8 ).toString();
+		String sessionKey = infoHash+"|"+pathHash;
     	TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
@@ -453,11 +445,12 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
     
     // stop bt client gracefully
     @DELETE
-    @Path("/stream/{infoHash}/{pathHashSet}")
-    public Response deleteTorrent(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet) {
+    @Path("/stream/{infoHash}/{path}")
+    public Response deleteTorrent(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path) throws UnsupportedEncodingException {
     	logger.info("@DELETE request received");
     	
-    	String sessionKey = infoHash+"|"+pathHashSet;
+    	String pathHash = Hashing.sha256().hashString(URLDecoder.decode(path, "UTF-8"), Charsets.UTF_8 ).toString();
+		String sessionKey = infoHash+"|"+pathHash;
     	TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
@@ -490,10 +483,11 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 
     
     @GET
-    @Path("/stream/{infoHash}/{pathHashSet}")
-    public Response stream( @HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("pathHashSet") @NotNull @Size(min = 64, max = 64) @Pattern(regexp = "^[a-fA-F0-9]+$") String pathHashSet) throws Exception {
+    @Path("/stream/{infoHash}/{path}")
+    public Response stream( @HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path) throws Exception {
     	
-    	String sessionKey = infoHash+"|"+pathHashSet;
+    	String pathHash = Hashing.sha256().hashString(URLDecoder.decode(path, "UTF-8"), Charsets.UTF_8 ).toString();
+		String sessionKey = infoHash+"|"+pathHash;
     	TorrentSessionStateService torrentState = torrentSessionState.get(sessionKey);
 		if(torrentState==null) {
 			return Response.status(Status.NOT_FOUND).build();
