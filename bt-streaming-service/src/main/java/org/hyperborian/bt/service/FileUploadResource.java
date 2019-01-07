@@ -8,6 +8,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -26,6 +27,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
@@ -89,19 +91,19 @@ public class FileUploadResource {
 	@Produces({MediaType.TEXT_HTML})
 	public Response createTorrent(@DefaultValue("") @FormDataParam("tags") String tags,
 			@FormDataParam("files") List<FormDataBodyPart> bodyParts,
-			@FormDataParam("files") FormDataContentDisposition fileDispositions,
-			@FormDataParam("id") String id) throws IOException {
+			@FormDataParam("files") FormDataContentDisposition fileDispositions) throws IOException {
 
 		if(saveFileThreads.size()>10) {
 			 return Response.status(Status.SERVICE_UNAVAILABLE).entity("Service is over capacity").build();
 		}
-		this.id = id;
+		this.id = getRandomHexString(12);
 		StringBuffer fileDetails = new StringBuffer("");
 
 		/* Save multiple files */
 		MetadataBuilder builder = new MetadataBuilder();
 		java.nio.file.Path path = FileSystems.getDefault().getPath(TorrentSessionStateService.getDownloadPath());
-		
+		java.nio.file.Path tmpPath = path.resolve(id);
+		long dataSize = 0;
 		for (int i = 0; i < bodyParts.size(); i++) {
 			/*
 			 * Casting FormDataBodyPart to BodyPartEntity, which can give us
@@ -112,8 +114,10 @@ public class FileUploadResource {
 			if(!Files.exists(path)) {
 				Files.createDirectories(path);
 			}
-			java.nio.file.Path tmp = Files.createDirectories(path.resolve(id)).resolve(fileName);
-			saveFile(bodyPartEntity.getInputStream(), tmp);
+			java.nio.file.Path tmp = Files.createDirectories(tmpPath).resolve(fileName);
+			
+			long size = saveFile(bodyPartEntity.getInputStream(), tmp);
+			dataSize+=size;
 			fileDetails.append(" File saved at "+TorrentSessionStateService.getDownloadPath() + fileName);
 			builder.addFile(tmp.toFile());
 		}
@@ -126,6 +130,7 @@ public class FileUploadResource {
 		TorrentMetadata metadata = parser.parse(torrentBinary);
 		FileUploadResource object = saveFileThreads.get(metadata.getHexInfoHash());
 		if(object!=null) {
+			FileUtils.deleteDirectory(tmpPath.toFile());
 			return Response.status(Response.Status.CREATED).header("Location", TorrentSessionStateService.getBaseUrl()+"/"+object.getId()+"/"+object.getTorrentFileId()+".torrent").header("Access-Control-Expose-Headers", "Location").build();
 		}
 		String torrentBinaryBase64 = Base64.getEncoder().encodeToString(torrentBinary);
@@ -157,7 +162,15 @@ public class FileUploadResource {
 		}
 		this.torrentFileId = DigestUtils.sha1Hex(torrentBinary);
 		saveFileThreads.put(metadata.getHexInfoHash(), this);
-		return Response.status(Response.Status.OK).entity(responseStatus).header("Location", TorrentSessionStateService.getBaseUrl()+"/"+id+"/"+torrentFileId+".torrent").header("Access-Control-Expose-Headers", "Location").build();
+		/**
+		 * insert into DB
+		 */
+		
+		return Response.status(Response.Status.OK).entity(responseStatus).
+				header("Location", TorrentSessionStateService.getBaseUrl()+"/"+id+"/"+torrentFileId+".torrent").
+				header("Content-InfoHash", metadata.getHexInfoHash()).
+				header("Data-Length", dataSize).
+				header("Access-Control-Expose-Headers", "Location").build();
 	}
 	
 	public static String getMagnetLink(String infoHash) throws UnsupportedEncodingException {
@@ -170,15 +183,28 @@ public class FileUploadResource {
 		return client;
 	}
 
-	private void saveFile(InputStream inputStream, java.nio.file.Path path) throws IOException {
+	private long saveFile(InputStream inputStream, java.nio.file.Path path) throws IOException {
 	    OutputStream outStream = new FileOutputStream(path.toFile());
+	    long dataSize = 0;
 	    byte[] buffer = new byte[8 * 1024];
 	    int bytesRead;
 	    while ((bytesRead = inputStream.read(buffer)) != -1) {
+	    	dataSize+=bytesRead;
 	        outStream.write(buffer, 0, bytesRead);
 	    }
 	    IOUtils.closeQuietly(inputStream);
 	    IOUtils.closeQuietly(outStream);
+	    return dataSize;
 	}
+	
+	private String getRandomHexString(int numchars){
+        SecureRandom r = new SecureRandom();
+        StringBuffer sb = new StringBuffer();
+        while(sb.length() < numchars){
+            sb.append(Integer.toHexString(r.nextInt()));
+        }
+
+        return sb.toString().substring(0, numchars);
+    }
 	
 }
