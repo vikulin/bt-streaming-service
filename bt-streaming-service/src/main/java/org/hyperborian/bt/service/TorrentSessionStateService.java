@@ -370,7 +370,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	}
 	
 	@GET
-	@Path("/status/{infoHash}/{path}")
+	@Path("/status/{infoHash}/{path : .+}")
 	@Produces("application/json")
 	public Response getChunkNumber(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path)  throws Exception  {
 		String pathHash = Hashing.sha256().hashString(URLDecoder.decode(path, "UTF-8"), Charsets.UTF_8 ).toString();
@@ -386,7 +386,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	}
 	
 	@GET
-	@Path("/metainfo/{infoHash}/{path}")
+	@Path("/metainfo/{infoHash}/{path : .+}")
 	@Produces("application/json")
 	public Response getTorrentMetainfo(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path)  throws Exception  {
 		
@@ -405,7 +405,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 	
     // for clients to check whether the server supports range / partial content requests
     @HEAD
-    @Path("/stream/{infoHash}/{path}")
+    @Path("/stream/{infoHash}/{path : .+}")
     public Response header(@HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path) throws UnsupportedEncodingException {
     	logger.info("@HEAD request received");
     	
@@ -444,7 +444,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
     
     // stop bt client gracefully
     @DELETE
-    @Path("/stream/{infoHash}/{path}")
+    @Path("/stream/{infoHash}/{path : .+}")
     public Response deleteTorrent(@PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path) throws UnsupportedEncodingException {
     	logger.info("@DELETE request received");
     	
@@ -482,7 +482,7 @@ public class TorrentSessionStateService implements Consumer<TorrentSessionState>
 
     
     @GET
-    @Path("/stream/{infoHash}/{path}")
+    @Path("/stream/{infoHash}/{path : .+}")
     public Response stream( @HeaderParam("Range") String range, @PathParam("infoHash") @NotNull @Size(min = 40, max = 40) @Pattern(regexp = "^[a-fA-F0-9]+$") String infoHash, @PathParam("path") @NotNull String path) throws Exception {
     	
     	String pathHash = Hashing.sha256().hashString(URLDecoder.decode(path, "UTF-8"), Charsets.UTF_8 ).toString();

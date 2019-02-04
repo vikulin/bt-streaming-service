@@ -1,0 +1,1 @@
+-Dcatalina.base="C:\Users\Vadym\Downloads\apache-tomcat-8.5.27" -Dcatalina.home="C:\Users\Vadym\Downloads\apache-tomcat-8.5.27" -Dwtp.deploy="C:\Users\Vadym\Downloads\apache-tomcat-8.5.27\webapps" -Djava.endorsed.dirs="C:\Users\Vadym\Downloads\apache-tomcat-8.5.27\endorsed" -Dfile.encoding="UTF-8" -
