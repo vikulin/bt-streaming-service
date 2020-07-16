@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?><project-modules id="moduleCoreId" project-version="1.5.0">
+    <wb-module deploy-name="bt-streaming-service">
+        <wb-resource deploy-path="/" source-path="/WebContent" tag="defaultRootSource"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/bt-streaming-service/src/main/java"/>
+        <property name="context-root" value="bt-streaming-service"/>
+        <property name="java-output-path" value="/bt-streaming-service/bt-streaming-service/target/bt-streaming-service-0.0.1-SNAPSHOT/WEB-INF/classes"/>
+    </wb-module>
+</project-modules>
